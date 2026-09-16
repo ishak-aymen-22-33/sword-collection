@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sword Collection | متجر المجوهرات الفاخرة</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for Interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #0b0b0b; color: #f3f4f6; }
+        .gold-text { color: #d4af37; }
+        .gold-bg { background-color: #d4af37; }
+        .gold-border { border-color: #d4af37; }
+    </style>
+</head>
+<body x-data="store()" x-init="initStore()">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-800 py-4 px-6 flex justify-between items-center">
+        <div class="flex items-center gap-3 cursor-pointer" @click="goHome()">
+            <h1 class="text-xl font-bold tracking-wider gold-text">SWORD COLLECTION</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button @click="goHome()" class="text-sm text-zinc-300 hover:text-[#d4af37] transition hidden sm:block">الرئيسية</button>
+            <button @click="cartOpen = true" class="relative bg-zinc-900 border gold-border px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-zinc-800 transition">
+                <span>🛒 السلة</span>
+                <span class="gold-bg text-black font-bold px-2 py-0.5 rounded-full text-xs" x-text="cart.length"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- VIEW 1: Main Store Catalog (Home) -->
+    <main x-show="currentView === 'home'" class="max-w-7xl mx-auto px-6 py-12">
+        <!-- Hero Section -->
+        <section class="py-12 px-6 text-center bg-gradient-to-b from-zinc-900 to-[#0b0b0b] border border-zinc-800 rounded-2xl mb-12">
+            <h2 class="text-3xl md:text-5xl font-extrabold mb-4 gold-text">أناقة تعكس شخصيتك الفاخرة</h2>
+            <p class="text-zinc-400 max-w-xl mx-auto text-sm md:text-base">اكتشف تشكيلتنا الحصرية من المجوهرات المصممة خصيصاً لتناسب ذوقك الرفيع. الدفع عند الاستلام متوفر لجميع ولايات الوطن.</p>
+        </section>
+
+        <h3 class="text-2xl font-bold mb-8 border-r-4 gold-border pr-3">تشكيلة المنتجات</h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <template x-for="product in products" :key="product.id">
+                <div @click="openProduct(product)" class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between hover:border-[#d4af37] transition duration-300 cursor-pointer">
+                    <div>
+                        <img :src="product.image" :alt="product.name" class="w-full h-64 object-cover">
+                        <div class="p-4">
+                            <h4 class="font-bold text-lg mb-1" x-text="product.name"></h4>
+                            <p class="text-zinc-400 text-xs mb-3 line-clamp-2" x-text="product.description"></p>
+                            <span class="text-lg font-extrabold gold-text" x-text="product.price + ' دج'"></span>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0">
+                        <button class="w-full bg-zinc-800 text-zinc-200 text-sm font-bold py-2.5 rounded-lg hover:bg-[#d4af37] hover:text-black transition">عرض المنتج والطلب</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </main>
+
+    <!-- VIEW 2: Dedicated Product Landing Page (For Ads / Reels) -->
+    <main x-show="currentView === 'product'" class="max-w-4xl mx-auto px-6 py-12" style="display: none;">
+        <button @click="goHome()" class="mb-6 text-sm text-zinc-400 hover:text-[#d4af37] flex items-center gap-2">← العودة إلى جميع المنتجات</button>
+        
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-8 p-6 md:p-8">
+            <div>
+                <img :src="selectedProduct.image" :alt="selectedProduct.name" class="w-full h-80 md:h-[400px] object-cover rounded-xl border border-zinc-800">
+            </div>
+            <div class="flex flex-col justify-between">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold mb-3 gold-text" x-text="selectedProduct.name"></h2>
+                    <p class="text-zinc-300 text-sm leading-relaxed mb-6" x-text="selectedProduct.description"></p>
+                    <div class="text-2xl font-extrabold gold-text mb-6" x-text="selectedProduct.price + ' دج'"></div>
+
+                    <!-- Quantity Selector -->
+                    <div class="flex items-center gap-4 mb-6">
+                        <span class="text-sm text-zinc-400">الكمية:</span>
+                        <div class="flex items-center border border-zinc-700 rounded-lg bg-black">
+                            <button @click="if(quantity > 1) quantity--" class="px-3 py-1 text-zinc-300 hover:text-white">-</button>
+                            <span class="px-4 py-1 font-bold text-sm" x-text="quantity"></span>
+                            <button @click="quantity++" class="px-3 py-1 text-zinc-300 hover:text-white">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fast Order Form for this specific product -->
+                <div class="border-t border-zinc-800 pt-6">
+                    <h3 class="font-bold text-sm mb-3 gold-text">⚡ اطلب الآن (الدفع عند الاستلام)</h3>
+                    <form @submit.prevent="submitDirectOrder" class="space-y-3">
+                        <input type="text" x-model="orderForm.name" placeholder="الاسم واللقب" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                        <input type="tel" x-model="orderForm.phone" placeholder="رقم الهاتف" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                        <input type="text" x-model="orderForm.address" placeholder="الولاية والعنوان الكامل" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                        
+                        <div class="flex gap-3 pt-2">
+                            <button type="submit" class="flex-1 gold-bg text-black font-bold py-3 rounded-lg hover:opacity-90 transition text-sm">تأكيد الطلب السريع</button>
+                            <button type="button" @click="addSelectedToCart()" class="bg-zinc-800 border gold-border text-xs px-4 py-3 rounded-lg hover:bg-zinc-700 transition">إضافة للسلة</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Cart Drawer Modal -->
+    <div x-show="cartOpen" class="fixed inset-0 z-50 bg-black/70 flex justify-end" style="display: none;">
+        <div class="bg-zinc-900 w-full max-w-md h-full p-6 flex flex-col justify-between border-l border-zinc-800">
+            <div>
+                <div class="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+                    <h3 class="text-xl font-bold gold-text">سلة المشتريات</h3>
+                    <button @click="cartOpen = false" class="text-zinc-400 hover:text-white text-xl">✕</button>
+                </div>
+
+                <div class="space-y-4 overflow-y-auto max-h-[50vh]">
+                    <template x-for="(item, index) in cart" :key="index">
+                        <div class="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-zinc-800">
+                            <div>
+                                <h4 class="font-semibold text-sm" x-text="item.name"></h4>
+                                <span class="text-xs text-zinc-400" x-text="'الكمية: ' + item.quantity"></span>
+                                <div class="text-xs gold-text" x-text="(item.price * item.quantity) + ' دج'"></div>
+                            </div>
+                            <button @click="removeFromCart(index)" class="text-red-400 text-xs">حذف</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Checkout Form -->
+            <div class="border-t border-zinc-800 pt-4 mt-4">
+                <div class="flex justify-between font-bold mb-4">
+                    <span>المجموع الإجمالي:</span>
+                    <span class="gold-text" x-text="totalPrice() + ' دج'"></span>
+                </div>
+
+                <form @submit.prevent="submitCartOrder" class="space-y-3">
+                    <input type="text" x-model="cartForm.name" placeholder="الاسم واللقب" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                    <input type="tel" x-model="cartForm.phone" placeholder="رقم الهاتف" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                    <input type="text" x-model="cartForm.address" placeholder="الولاية والعنوان الكامل" required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm focus:border-[#d4af37] outline-none">
+                    <button type="submit" class="w-full gold-bg text-black font-bold py-3 rounded-lg hover:opacity-90 transition">تأكيد طلب السلة (الدفع عند الاستلام)</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzPOHDkx38r1BUyFA96arnKKkZ-WGJ0CO1fQqkNrc0AIxf6hiFYfsUyXbnNAMuV6aKFdw/exec';
+
+        function store() {
+            return {
+                products: [],
+                currentView: 'home', // 'home' or 'product'
+                selectedProduct: {},
+                quantity: 1,
+                cart: [],
+                cartOpen: false,
+                orderForm: { name: '', phone: '', address: '' },
+                cartForm: { name: '', phone: '', address: '' },
+
+                initStore() {
+                    fetch(API_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            this.products = data;
+                            // Check if URL has a product hash (e.g., #1) for Instagram Reels direct links
+                            const hash = window.location.hash.replace('#', '');
+                            if (hash) {
+                                const found = this.products.find(p => String(p.id) === hash);
+                                if (found) {
+                                    this.openProduct(found);
+                                }
+                            }
+                        })
+                        .catch(err => { console.error('Error fetching products:', err); });
+                },
+
+                openProduct(product) {
+                    this.selectedProduct = product;
+                    this.quantity = 1;
+                    this.currentView = 'product';
+                    window.location.hash = product.id;
+                    window.scrollTo(0, 0);
+                },
+
+                goHome() {
+                    this.currentView = 'home';
+                    window.location.hash = '';
+                    window.scrollTo(0, 0);
+                },
+
+                addSelectedToCart() {
+                    const item = {
+                        name: this.selectedProduct.name,
+                        price: Number(this.selectedProduct.price),
+                        quantity: this.quantity
+                    };
+                    this.cart.push(item);
+                    this.cartOpen = true;
+                },
+
+                removeFromCart(index) {
+                    this.cart.splice(index, 1);
+                },
+
+                totalPrice() {
+                    return this.cart.reduce((total, item) => total + (Number(item.price) * item.quantity), 0);
+                },
+
+                submitDirectOrder() {
+                    const orderData = {
+                        customer: this.orderForm,
+                        items: [{
+                            name: this.selectedProduct.name,
+                            price: Number(this.selectedProduct.price),
+                            quantity: this.quantity
+                        }],
+                        total: Number(this.selectedProduct.price) * this.quantity
+                    };
+
+                    this.sendOrderToServer(orderData);
+                },
+
+                submitCartOrder() {
+                    const orderData = {
+                        customer: this.cartForm,
+                        items: this.cart,
+                        total: this.totalPrice()
+                    };
+
+                    this.sendOrderToServer(orderData);
+                },
+
+                sendOrderToServer(orderData) {
+                    fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(orderData)
+                    })
+                    .then(res => res.json())
+                    .then(response => {
+                        alert('تم تسجيل طلبك بنجاح! سنتصل بك قريباً للتأكيد.');
+                        this.cart = [];
+                        this.cartOpen = false;
+                        this.orderForm = { name: '', phone: '', address: '' };
+                        this.cartForm = { name: '', phone: '', address: '' };
+                        this.goHome();
+                    })
+                    .catch(err => {
+                        alert('حدث خطأ أثناء إرسال الطلب، يرجى المحاولة مرة أخرى.');
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
