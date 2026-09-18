@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js for Interactivity -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Supabase JS Library CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #0b0b0b; color: #f3f4f6; }
@@ -19,13 +21,31 @@
 <body x-data="store()" x-init="initStore()">
 
     <!-- Header -->
-    <header class="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-800 py-4 px-6 flex justify-between items-center">
+    <header class="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-800 py-4 px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="flex items-center gap-3 cursor-pointer" @click="goHome()">
             <h1 class="text-xl font-bold tracking-wider gold-text">SWORD COLLECTION</h1>
         </div>
-        <div class="flex items-center gap-4">
-            <button @click="goHome()" class="text-sm text-zinc-300 hover:text-[#d4af37] transition hidden sm:block">الرئيسية</button>
-            <button @click="cartOpen = true" class="relative bg-zinc-900 border gold-border px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-zinc-800 transition">
+
+        <!-- Search Bar -->
+        <div class="w-full sm:w-72">
+            <input type="text" x-model="searchQuery" placeholder="ابحث عن منتج..." class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-1.5 text-sm focus:border-[#d4af37] outline-none text-zinc-200">
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Account Button -->
+            <button @click="openAuthModal()" class="bg-zinc-900 border border-zinc-700 px-3 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2 hover:border-[#d4af37] transition">
+                <span>👤</span>
+                <span x-text="user ? (profile.full_name || 'حسابي') : 'تسجيل الدخول'"></span>
+            </button>
+
+            <!-- Wishlist Button -->
+            <button @click="currentView = 'wishlist'" class="bg-zinc-900 border border-zinc-700 px-3 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-1 hover:border-[#d4af37] transition">
+                <span>❤️ المفضلة</span>
+                <span class="bg-zinc-800 px-1.5 rounded-full text-xs" x-text="wishlist.length"></span>
+            </button>
+
+            <!-- Cart Button -->
+            <button @click="cartOpen = true" class="relative bg-zinc-900 border gold-border px-3 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2 hover:bg-zinc-800 transition">
                 <span>🛒 السلة</span>
                 <span class="gold-bg text-black font-bold px-2 py-0.5 rounded-full text-xs" x-text="cart.length"></span>
             </button>
@@ -34,38 +54,43 @@
 
     <!-- VIEW 1: Main Store Catalog (Home) -->
     <main x-show="currentView === 'home'" class="max-w-7xl mx-auto px-6 py-12">
-        <!-- Hero Section -->
         <section class="py-12 px-6 text-center bg-gradient-to-b from-zinc-900 to-[#0b0b0b] border border-zinc-800 rounded-2xl mb-12">
             <h2 class="text-3xl md:text-5xl font-extrabold mb-4 gold-text">أناقة تعكس شخصيتك الفاخرة</h2>
-            <p class="text-zinc-400 max-w-xl mx-auto text-sm md:text-base">اكتشف تشكيلتنا الحصرية من المجوهرات المصممة خصيصاً لتناسب ذوقك الرفيع. الدفع عند الاستلام متوفر لجميع ولايات الوطن.</p>
+            <p class="text-zinc-400 max-w-xl mx-auto text-sm md:text-base">اكتشف تشكيلتنا الحصرية من المجوهرات الفاخرة. الدفع عند الاستلام متوفر لجميع ولايات الوطن.</p>
         </section>
 
-        <h3 class="text-2xl font-bold mb-8 border-r-4 gold-border pr-3">تشكيلة المنتجات</h3>
+        <div class="flex justify-between items-center mb-8">
+            <h3 class="text-2xl font-bold border-r-4 gold-border pr-3">تشكيلة المنتجات</h3>
+            <template x-if="profile && profile.role === 'admin'">
+                <button @click="currentView = 'admin'" class="bg-red-900/40 border border-red-500 text-red-300 px-4 py-2 rounded-lg text-xs font-bold">🛠️ لوحة تحكم الأدمن</button>
+            </template>
+        </div>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <template x-for="product in products" :key="product.id">
-                <div @click="openProduct(product)" class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between hover:border-[#d4af37] transition duration-300 cursor-pointer">
-                    <div>
+            <template x-for="product in filteredProducts()" :key="product.id">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between hover:border-[#d4af37] transition duration-300">
+                    <div class="relative cursor-pointer" @click="openProduct(product)">
                         <img :src="product.image" :alt="product.name" class="w-full h-64 object-cover">
-                        <div class="p-4">
-                            <h4 class="font-bold text-lg mb-1" x-text="product.name"></h4>
-                            <p class="text-zinc-400 text-xs mb-3 line-clamp-2" x-text="product.description"></p>
-                            <span class="text-lg font-extrabold gold-text" x-text="product.price + ' دج'"></span>
-                        </div>
+                        <button @click.stop="toggleWishlist(product.id)" class="absolute top-3 left-3 bg-black/60 p-2 rounded-full text-lg" x-text="isInWishlist(product.id) ? '❤️' : '🤍'"></button>
+                    </div>
+                    <div class="p-4 cursor-pointer" @click="openProduct(product)">
+                        <h4 class="font-bold text-lg mb-1" x-text="product.name"></h4>
+                        <p class="text-zinc-400 text-xs mb-3 line-clamp-2" x-text="product.description"></p>
+                        <span class="text-lg font-extrabold gold-text" x-text="product.price + ' دج'"></span>
                     </div>
                     <div class="p-4 pt-0">
-                        <button class="w-full bg-zinc-800 text-zinc-200 text-sm font-bold py-2.5 rounded-lg hover:bg-[#d4af37] hover:text-black transition">عرض المنتج والطلب</button>
+                        <button @click="openProduct(product)" class="w-full bg-zinc-800 text-zinc-200 text-sm font-bold py-2.5 rounded-lg hover:bg-[#d4af37] hover:text-black transition">عرض المنتج والطلب</button>
                     </div>
                 </div>
             </template>
         </div>
     </main>
 
-    <!-- VIEW 2: Dedicated Product Landing Page (For Ads / Reels) -->
+    <!-- VIEW 2: Dedicated Product Landing Page (For Ads / Reviews / Comments) -->
     <main x-show="currentView === 'product'" class="max-w-4xl mx-auto px-6 py-12" style="display: none;">
         <button @click="goHome()" class="mb-6 text-sm text-zinc-400 hover:text-[#d4af37] flex items-center gap-2">← العودة إلى جميع المنتجات</button>
         
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-8 p-6 md:p-8">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-8 p-6 md:p-8 mb-8">
             <div>
                 <img :src="selectedProduct.image" :alt="selectedProduct.name" class="w-full h-80 md:h-[400px] object-cover rounded-xl border border-zinc-800">
             </div>
@@ -86,7 +111,7 @@
                     </div>
                 </div>
 
-                <!-- Fast Order Form for this specific product -->
+                <!-- Fast Order Form -->
                 <div class="border-t border-zinc-800 pt-6">
                     <h3 class="font-bold text-sm mb-3 gold-text">⚡ اطلب الآن (الدفع عند الاستلام)</h3>
                     <form @submit.prevent="submitDirectOrder" class="space-y-3">
@@ -102,7 +127,135 @@
                 </div>
             </div>
         </div>
+
+        <!-- Reviews & Comments Section -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8">
+            <h3 class="text-xl font-bold mb-6 gold-text">⭐ التقييمات والتعليقات</h3>
+            
+            <!-- Add Review Form (Only for logged in users) -->
+            <template x-if="user">
+                <form @submit.prevent="submitReview" class="mb-8 bg-black/40 p-4 rounded-xl border border-zinc-800 space-y-3">
+                    <h4 class="font-bold text-sm">أضف تقييمك لهذا المنتج</h4>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-zinc-400">التقييم بالنجوم:</span>
+                        <select x-model="newReview.rating" class="bg-black border border-zinc-700 rounded p-1 text-sm text-gold">
+                            <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                            <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                            <option value="3">⭐⭐⭐ (3/5)</option>
+                            <option value="2">⭐⭐ (2/5)</option>
+                            <option value="1">⭐ (1/5)</option>
+                        </select>
+                    </div>
+                    <textarea x-model="newReview.comment" placeholder="اكتب تعليقك هنا..." required class="w-full bg-black border border-zinc-700 rounded-lg p-2.5 text-sm outline-none focus:border-[#d4af37]"></textarea>
+                    <button type="submit" class="gold-bg text-black font-bold px-4 py-2 rounded-lg text-xs">إرسال التقييم</button>
+                </form>
+            </template>
+            <template x-if="!user">
+                <p class="text-xs text-zinc-400 mb-6 bg-black/40 p-3 rounded-lg">الرجاء <button @click="openAuthModal()" class="gold-text underline">تسجيل الدخول</button> لكتابة تقييم أو تعليق.</p>
+            </template>
+
+            <!-- Display Reviews -->
+            <div class="space-y-4">
+                <template x-for="rev in productReviews" :key="rev.id">
+                    <div class="bg-black/50 p-4 rounded-xl border border-zinc-800 flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-sm" x-text="rev.profiles?.full_name || 'مستخدم مجهول'"></span>
+                                <span class="text-xs text-yellow-500" x-text="'★'.repeat(rev.rating)"></span>
+                            </div>
+                            <p class="text-zinc-300 text-xs" x-text="rev.comment"></p>
+                        </div>
+                        <!-- Delete button for owner or admin -->
+                        <template x-if="user && (user.id === rev.user_id || profile.role === 'admin')">
+                            <button @click="deleteReview(rev.id)" class="text-red-400 text-xs hover:underline">حذف</button>
+                        </template>
+                    </div>
+                </template>
+                <p x-show="productReviews.length === 0" class="text-xs text-zinc-500">لا توجد تقييمات حتى الآن. كن أول من يتقيم!</p>
+            </div>
+        </div>
     </main>
+
+    <!-- VIEW 3: Wishlist View -->
+    <main x-show="currentView === 'wishlist'" class="max-w-7xl mx-auto px-6 py-12" style="display: none;">
+        <button @click="goHome()" class="mb-6 text-sm text-zinc-400 hover:text-[#d4af37]">← العودة للمتجر</button>
+        <h3 class="text-2xl font-bold mb-8 border-r-4 gold-border pr-3">قائمة المفضلة (Wishlist)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <template x-for="product in wishlistProducts()" :key="product.id">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <img :src="product.image" :alt="product.name" class="w-full h-64 object-cover cursor-pointer" @click="openProduct(product)">
+                        <div class="p-4">
+                            <h4 class="font-bold text-lg mb-1" x-text="product.name"></h4>
+                            <span class="text-lg font-extrabold gold-text" x-text="product.price + ' دج'"></span>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0 flex gap-2">
+                        <button @click="openProduct(product)" class="flex-1 bg-zinc-800 text-zinc-200 text-xs font-bold py-2 rounded-lg hover:bg-[#d4af37] hover:text-black transition">عرض</button>
+                        <button @click="toggleWishlist(product.id)" class="bg-red-900/30 text-red-400 px-3 py-2 rounded-lg text-xs">إزالة</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <p x-show="wishlistProducts().length === 0" class="text-zinc-500 text-sm">قائمة المفضلة فارغة حالياً.</p>
+    </main>
+
+    <!-- VIEW 4: Admin Panel (Moderation) -->
+    <main x-show="currentView === 'admin' && profile && profile.role === 'admin'" class="max-w-5xl mx-auto px-6 py-12" style="display: none;">
+        <button @click="goHome()" class="mb-6 text-sm text-zinc-400 hover:text-[#d4af37]">← العودة للمتجر</button>
+        <h3 class="text-2xl font-bold mb-6 gold-text">🛠️ لوحة تحكم الأدمن (الرقابة والإدارة)</h3>
+        
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+            <h4 class="font-bold text-lg mb-4 text-zinc-200">إدارة وحذف التعليقات المخالفة</h4>
+            <div class="space-y-3">
+                <template x-for="rev in adminAllReviews" :key="rev.id">
+                    <div class="bg-black/60 p-3 rounded-lg border border-zinc-800 flex justify-between items-center">
+                        <div>
+                            <span class="text-xs gold-text font-bold" x-text="'منتج ID: ' + rev.product_id"></span>
+                            <p class="text-xs text-zinc-300" x-text="rev.comment"></p>
+                        </div>
+                        <button @click="adminDeleteReview(rev.id)" class="bg-red-600 text-white px-3 py-1 rounded text-xs">حذف نهائي</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+
+    <!-- Auth Modal (Login / Register) -->
+    <div x-show="authOpen" class="fixed inset-0 z-50 bg-black/70 flex justify-center items-center px-4" style="display: none;">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-md p-6 rounded-2xl relative">
+            <button @click="authOpen = false" class="absolute top-4 left-4 text-zinc-400 hover:text-white">✕</button>
+            
+            <template x-if="!user">
+                <div>
+                    <h3 class="text-xl font-bold mb-4 gold-text text-center" x-text="authMode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد'"></h3>
+                    
+                    <form @submit.prevent="handleAuth" class="space-y-4">
+                        <template x-if="authMode === 'register'">
+                            <input type="text" x-model="authForm.fullName" placeholder="الاسم الكامل" required class="w-full bg-black border border-zinc-700 rounded-lg p-3 text-sm focus:border-[#d4af37] outline-none">
+                        </template>
+                        <input type="email" x-model="authForm.email" placeholder="البريد الإلكتروني" required class="w-full bg-black border border-zinc-700 rounded-lg p-3 text-sm focus:border-[#d4af37] outline-none">
+                        <input type="password" x-model="authForm.password" placeholder="كلمة المرور" required class="w-full bg-black border border-zinc-700 rounded-lg p-3 text-sm focus:border-[#d4af37] outline-none">
+                        
+                        <button type="submit" class="w-full gold-bg text-black font-bold py-3 rounded-lg text-sm transition" x-text="authMode === 'login' ? 'دخول' : 'تسجيل وحفظ'"></button>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-xs text-zinc-400 hover:text-[#d4af37] underline" x-text="authMode === 'login' ? 'ليس لديك حساب؟ انشئ حساباً جديداً' : 'لديك حساب بالفعل؟ سجل دخولك'"></button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="user">
+                <div class="text-center space-y-4">
+                    <h3 class="text-xl font-bold gold-text">مرحباً، <span x-text="profile.full_name || 'عزيزنا العميل'"></span></h3>
+                    <p class="text-xs text-zinc-400" x-text="user.email"></p>
+                    <p class="text-xs bg-zinc-800 p-2 rounded text-gold font-bold" x-text="'الصلاحية: ' + (profile.role === 'admin' ? 'مدير (Admin)' : 'زبون (Customer)')"></p>
+                    <button @click="logout()" class="w-full bg-red-600/30 border border-red-500 text-red-300 font-bold py-2.5 rounded-lg text-xs">تسجيل الخروج</button>
+                </div>
+            </template>
+        </div>
+    </div>
 
     <!-- Cart Drawer Modal -->
     <div x-show="cartOpen" class="fixed inset-0 z-50 bg-black/70 flex justify-end" style="display: none;">
@@ -144,43 +297,174 @@
         </div>
     </div>
 
+    <!-- App Logic script -->
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbzPOHDkx38r1BUyFA96arnKKkZ-WGJ0CO1fQqkNrc0AIxf6hiFYfsUyXbnNAMuV6aKFdw/exec';
+        
+        const SUPABASE_URL = 'https://zxbssutkyhqdczostsdl.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_8dQbsgnDXFQpziNvbBiUcQ_eGFQr9xu';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function store() {
             return {
                 products: [],
-                currentView: 'home', // 'home' or 'product'
+                searchQuery: '',
+                currentView: 'home',
                 selectedProduct: {},
                 quantity: 1,
                 cart: [],
                 cartOpen: false,
+                authOpen: false,
+                authMode: 'login',
+                authForm: { email: '', password: '', fullName: '' },
+                user: null,
+                profile: { role: 'customer' },
+                wishlist: [],
+                productReviews: [],
+                adminAllReviews: [],
                 orderForm: { name: '', phone: '', address: '' },
                 cartForm: { name: '', phone: '', address: '' },
+                newReview: { rating: 5, comment: '' },
 
-                initStore() {
-                    fetch(API_URL)
-                        .then(res => res.json())
-                        .then(data => {
-                            this.products = data;
-                            // Check if URL has a product hash (e.g., #1) for Instagram Reels direct links
-                            const hash = window.location.hash.replace('#', '');
-                            if (hash) {
-                                const found = this.products.find(p => String(p.id) === hash);
-                                if (found) {
-                                    this.openProduct(found);
-                                }
-                            }
-                        })
-                        .catch(err => { console.error('Error fetching products:', err); });
+                async initStore() {
+                    // Fetch Products from GAS
+                    try {
+                        const res = await fetch(API_URL);
+                        this.products = await res.json();
+                        const hash = window.location.hash.replace('#', '');
+                        if (hash) {
+                            const found = this.products.find(p => String(p.id) === hash);
+                            if (found) this.openProduct(found);
+                        }
+                    } catch(e) { console.error(e); }
+
+                    // Check Supabase Auth Session
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session) {
+                        this.user = session.user;
+                        await this.fetchUserData();
+                    }
+
+                    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                        this.user = session ? session.user : null;
+                        if (this.user) await this.fetchUserData();
+                        else { this.profile = { role: 'customer' }; this.wishlist = []; }
+                    });
                 },
 
-                openProduct(product) {
+                filteredProducts() {
+                    if (!this.searchQuery) return this.products;
+                    return this.products.filter(p => p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || p.description.toLowerCase().includes(this.searchQuery.toLowerCase()));
+                },
+
+                async fetchUserData() {
+                    if (!this.user) return;
+                    // Fetch Profile
+                    let { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', this.user.id).single();
+                    if (prof) this.profile = prof;
+
+                    // Fetch Wishlist
+                    let { data: wish } = await supabaseClient.from('wishlist').select('product_id').eq('user_id', this.user.id);
+                    if (wish) this.wishlist = wish.map(w => w.product_id);
+
+                    // Fetch Admin Data if admin
+                    if (this.profile.role === 'admin') {
+                        let { data: allRev } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
+                        if (allRev) this.adminAllReviews = allRev;
+                    }
+                },
+
+                openAuthModal() {
+                    this.authOpen = true;
+                },
+
+                async handleAuth() {
+                    if (this.authMode === 'login') {
+                        const { error } = await supabaseClient.auth.signInWithPassword({ email: this.authForm.email, password: this.authForm.password });
+                        if (error) alert(error.message);
+                        else { this.authOpen = false; alert('تم تسجيل الدخول بنجاح!'); }
+                    } else {
+                        const { error } = await supabaseClient.auth.signUp({
+                            email: this.authForm.email,
+                            password: this.authForm.password,
+                            options: { data: { full_name: this.authForm.fullName } }
+                        });
+                        if (error) alert(error.message);
+                        else { alert('تم إنشاء الحساب بنجاح! تحقق من بريدك أو تم تسجيل الدخول.'); this.authOpen = false; }
+                    }
+                },
+
+                async logout() {
+                    await supabaseClient.auth.signOut();
+                    this.user = null;
+                    this.profile = { role: 'customer' };
+                    this.wishlist = [];
+                    this.authOpen = false;
+                    alert('تم تسجيل الخروج بنجاح.');
+                },
+
+                async toggleWishlist(productId) {
+                    if (!this.user) { alert('الرجاء تسجيل الدخول لاستخدام المفضلة'); this.openAuthModal(); return; }
+                    const index = this.wishlist.indexOf(productId);
+                    if (index > -1) {
+                        this.wishlist.splice(index, 1);
+                        await supabaseClient.from('wishlist').delete().eq('user_id', this.user.id).eq('product_id', productId);
+                    } else {
+                        this.wishlist.push(productId);
+                        await supabaseClient.from('wishlist').insert([{ user_id: this.user.id, product_id: productId }]);
+                    }
+                },
+
+                isInWishlist(productId) {
+                    return this.wishlist.includes(productId);
+                },
+
+                wishlistProducts() {
+                    return this.products.filter(p => this.wishlist.includes(String(p.id)));
+                },
+
+                async openProduct(product) {
                     this.selectedProduct = product;
                     this.quantity = 1;
                     this.currentView = 'product';
                     window.location.hash = product.id;
                     window.scrollTo(0, 0);
+                    await this.fetchReviews(product.id);
+                },
+
+                async fetchReviews(productId) {
+                    let { data } = await supabaseClient.from('reviews').select('*, profiles(full_name)').eq('product_id', productId).order('created_at', { ascending: false });
+                    if (data) this.productReviews = data;
+                },
+
+                async submitReview() {
+                    if (!this.user) return;
+                    const { error } = await supabaseClient.from('reviews').insert([{
+                        user_id: this.user.id,
+                        product_id: this.selectedProduct.id,
+                        rating: Number(this.newReview.rating),
+                        comment: this.newReview.comment
+                    }]);
+                    if (error) alert(error.message);
+                    else {
+                        this.newReview.comment = '';
+                        await this.fetchReviews(this.selectedProduct.id);
+                        alert('تمت إضافة تقييمك بنجاح!');
+                    }
+                },
+
+                async deleteReview(reviewId) {
+                    if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) return;
+                    await supabaseClient.from('reviews').delete().eq('id', reviewId);
+                    await this.fetchReviews(this.selectedProduct.id);
+                    if (this.profile.role === 'admin') this.fetchUserData();
+                },
+
+                async adminDeleteReview(reviewId) {
+                    if (!confirm('حذف نهائي للتعليق بصفتك أدمن؟')) return;
+                    await supabaseClient.from('reviews').delete().eq('id', reviewId);
+                    await this.fetchUserData();
+                    alert('تم الحذف بنجاح.');
                 },
 
                 goHome() {
@@ -190,64 +474,31 @@
                 },
 
                 addSelectedToCart() {
-                    const item = {
-                        name: this.selectedProduct.name,
-                        price: Number(this.selectedProduct.price),
-                        quantity: this.quantity
-                    };
-                    this.cart.push(item);
+                    this.cart.push({ name: this.selectedProduct.name, price: Number(this.selectedProduct.price), quantity: this.quantity });
                     this.cartOpen = true;
                 },
 
-                removeFromCart(index) {
-                    this.cart.splice(index, 1);
-                },
-
-                totalPrice() {
-                    return this.cart.reduce((total, item) => total + (Number(item.price) * item.quantity), 0);
-                },
+                removeFromCart(index) { this.cart.splice(index, 1); },
+                totalPrice() { return this.cart.reduce((t, i) => t + (i.price * i.quantity), 0); },
 
                 submitDirectOrder() {
-                    const orderData = {
-                        customer: this.orderForm,
-                        items: [{
-                            name: this.selectedProduct.name,
-                            price: Number(this.selectedProduct.price),
-                            quantity: this.quantity
-                        }],
-                        total: Number(this.selectedProduct.price) * this.quantity
-                    };
-
-                    this.sendOrderToServer(orderData);
+                    this.sendOrderToServer({ customer: this.orderForm, items: [{ name: this.selectedProduct.name, price: Number(this.selectedProduct.price), quantity: this.quantity }], total: Number(this.selectedProduct.price) * this.quantity });
                 },
 
                 submitCartOrder() {
-                    const orderData = {
-                        customer: this.cartForm,
-                        items: this.cart,
-                        total: this.totalPrice()
-                    };
-
-                    this.sendOrderToServer(orderData);
+                    this.sendOrderToServer({ customer: this.cartForm, items: this.cart, total: this.totalPrice() });
                 },
 
                 sendOrderToServer(orderData) {
-                    fetch(API_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(orderData)
-                    })
-                    .then(res => res.json())
-                    .then(response => {
-                        alert('تم تسجيل طلبك بنجاح! سنتصل بك قريباً للتأكيد.');
-                        this.cart = [];
-                        this.cartOpen = false;
+                    fetch(API_URL, { method: 'POST', body: JSON.stringify(orderData) })
+                    .then(() => {
+                        alert('تم تسجيل طلبك بنجاح! سنتصل بك قريباً.');
+                        this.cart = []; this.cartOpen = false;
                         this.orderForm = { name: '', phone: '', address: '' };
                         this.cartForm = { name: '', phone: '', address: '' };
                         this.goHome();
                     })
-                    .catch(err => {
-                        alert('حدث خطأ أثناء إرسال الطلب، يرجى المحاولة مرة أخرى.');
-                    });
+                    .catch(() => alert('حدث خطأ، يجى المحاولة مجدداً.'));
                 }
             }
         }
